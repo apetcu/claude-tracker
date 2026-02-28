@@ -20,6 +20,7 @@ interface TimelineEntry {
 
 export interface TimelineProps {
   data: TimelineEntry[];
+  dateRange?: [number, number];
 }
 
 const tooltipStyle = {
@@ -29,11 +30,27 @@ const tooltipStyle = {
   fontSize: 12,
 };
 
-export function ActivityTimeline({ data }: TimelineProps) {
+function formatXTick(ts: number) {
+  const d = new Date(ts);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+export function ActivityTimeline({ data, dateRange }: TimelineProps) {
   if (!data.length) return null;
 
   const hasClaude = data.some((d) => d.claudeMessages > 0);
   const hasCursor = data.some((d) => d.cursorMessages > 0);
+
+  // Convert date strings to timestamps for numeric X axis
+  const numericData = data.map((d) => ({
+    ...d,
+    ts: new Date(d.date).getTime(),
+  }));
+
+  const domain: [number, number] = dateRange ?? [
+    Math.min(...numericData.map((d) => d.ts)),
+    Math.max(...numericData.map((d) => d.ts)),
+  ];
 
   return (
     <div className="p-4 bg-surface-secondary border border-border rounded-lg flex flex-col">
@@ -41,7 +58,7 @@ export function ActivityTimeline({ data }: TimelineProps) {
       <div className="flex-1 relative min-h-[200px]">
         <div className="absolute inset-0">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data}>
+            <AreaChart data={numericData}>
               <defs>
                 <linearGradient id="colorClaude" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6c63ff" stopOpacity={0.3} />
@@ -53,7 +70,10 @@ export function ActivityTimeline({ data }: TimelineProps) {
                 </linearGradient>
               </defs>
               <XAxis
-                dataKey="date"
+                dataKey="ts"
+                type="number"
+                domain={domain}
+                tickFormatter={formatXTick}
                 tick={{ fontSize: 10, fill: "#71717a" }}
                 tickLine={false}
                 axisLine={false}
@@ -65,7 +85,10 @@ export function ActivityTimeline({ data }: TimelineProps) {
                 width={30}
                 allowDecimals={false}
               />
-              <Tooltip contentStyle={tooltipStyle} />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                labelFormatter={formatXTick}
+              />
               {hasClaude && hasCursor && (
                 <Legend
                   iconType="square"

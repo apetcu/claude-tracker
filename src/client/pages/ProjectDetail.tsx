@@ -1,9 +1,11 @@
-import { useParams, Link } from "react-router-dom";
+import { useMemo } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { StatCard } from "../components/metrics/StatCard";
 import { ToolBreakdown } from "../components/metrics/ToolBreakdown";
 import { FileContributions } from "../components/metrics/FileContributions";
 import { ActivityTimeline } from "../components/metrics/ActivityTimeline";
+import { SessionTimeline } from "../components/metrics/SessionTimeline";
 import { formatDate, formatRelative, formatDuration, formatNumber } from "../lib/format";
 import { PromptText } from "../components/PromptText";
 
@@ -74,13 +76,28 @@ function StackedBar({ segments, total }: { segments: { value: number; color: str
 
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: project } = useApi<ProjectInfo>(`/api/projects/${id}`);
   const { data: sessions, loading } = useApi<Session[]>(`/api/projects/${id}/sessions`);
   const { data: metrics } = useApi<ProjectMetrics>(`/api/metrics/project/${id}`);
 
+
   const netLines = (metrics?.totalLinesAdded ?? 0) - (metrics?.totalLinesRemoved ?? 0);
   const avgLinesPerSession = metrics && metrics.totalSessions > 0
     ? Math.round(metrics.totalLinesAdded / metrics.totalSessions) : 0;
+
+  // Shared date range across both timeline charts
+  const dateRange = useMemo<[number, number] | undefined>(() => {
+    const timestamps: number[] = [];
+    if (metrics?.timeline) {
+      for (const t of metrics.timeline) timestamps.push(new Date(t.date).getTime());
+    }
+    if (sessions) {
+      for (const s of sessions) timestamps.push(new Date(s.startedAt).getTime());
+    }
+    if (timestamps.length === 0) return undefined;
+    return [Math.min(...timestamps), Math.max(...timestamps)];
+  }, [metrics?.timeline, sessions]);
 
   return (
     <div className="space-y-6">
@@ -256,7 +273,7 @@ export function ProjectDetail() {
 
       {/* Activity timeline */}
       {metrics?.timeline && metrics.timeline.length > 0 && (
-        <ActivityTimeline data={metrics.timeline} />
+        <ActivityTimeline data={metrics.timeline} dateRange={dateRange} />
       )}
 
       {/* Tool usage & file contributions */}
@@ -268,6 +285,18 @@ export function ProjectDetail() {
           {metrics.fileContributions && Object.keys(metrics.fileContributions).length > 0 && (
             <FileContributions files={metrics.fileContributions} />
           )}
+        </div>
+      )}
+
+      {/* Session timeline */}
+      {!loading && sessions && sessions.length > 0 && (
+        <div className="p-4 bg-surface-secondary border border-border rounded-lg flex flex-col">
+          <h3 className="text-xs font-medium text-text-muted mb-3">Session Timeline</h3>
+          <SessionTimeline
+            sessions={sessions}
+            onSessionClick={(sid) => navigate(`/sessions/${sid}`)}
+            dateRange={dateRange}
+          />
         </div>
       )}
 
