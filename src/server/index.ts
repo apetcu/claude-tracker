@@ -4,6 +4,7 @@ import projectsRoutes from "./routes/projects";
 import sessionsRoutes from "./routes/sessions";
 import metricsRoutes from "./routes/metrics";
 import { startWatcher } from "./services/watcher";
+import { invalidateAll } from "./services/cache";
 
 const app = new Hono();
 
@@ -14,6 +15,11 @@ app.route("/api/sessions", sessionsRoutes);
 app.route("/api/metrics", metricsRoutes);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
+
+app.post("/api/cache/clear", (c) => {
+  invalidateAll();
+  return c.json({ status: "ok", message: "Cache cleared" });
+});
 
 // WebSocket connections
 const wsClients = new Set<{ send: (data: string) => void }>();

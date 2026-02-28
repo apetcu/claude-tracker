@@ -26,6 +26,12 @@ export interface ParsedSession {
   firstPrompt: string;
   startedAt: string;
   lastActive: string;
+  /** Human contribution: lines of text in user messages */
+  humanLines: number;
+  /** Human contribution: word count in user messages */
+  humanWords: number;
+  /** Human contribution: character count in user messages */
+  humanChars: number;
 }
 
 export async function parseSessionFile(
@@ -95,6 +101,9 @@ export async function parseSessionFile(
   let linesRemoved = 0;
   const fileContributions: Record<string, FileContribution> = {};
   let firstPrompt = "";
+  let humanLines = 0;
+  let humanWords = 0;
+  let humanChars = 0;
 
   // Interleave user and assistant messages by timestamp
   // Collect all deduplicated assistant events
@@ -115,8 +124,19 @@ export async function parseSessionFile(
     const msg = event.message!;
 
     if (kind === "user") {
+      const userText = extractText(msg.content);
       if (!firstPrompt) {
-        firstPrompt = extractText(msg.content);
+        firstPrompt = userText;
+      }
+      // Count human contribution from actual user text (not tool_result blocks)
+      const rawUserText = extractRawText(msg.content);
+      if (rawUserText.trim()) {
+        const stripped = rawUserText.replace(/<[^>]+>/g, "").trim();
+        if (stripped) {
+          humanLines += stripped.split("\n").length;
+          humanWords += stripped.split(/\s+/).filter(Boolean).length;
+          humanChars += stripped.length;
+        }
       }
       messages.push({
         role: "user",
@@ -191,7 +211,26 @@ export async function parseSessionFile(
     firstPrompt: firstPrompt.slice(0, 200),
     startedAt,
     lastActive,
+    humanLines,
+    humanWords,
+    humanChars,
   };
+}
+
+/** Extract raw text preserving newlines — used for human line counting */
+function extractRawText(content: string | ContentBlock[] | unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    const texts: string[] = [];
+    for (const block of content) {
+      if (typeof block === "object" && block !== null) {
+        const b = block as ContentBlock;
+        if (b.type === "text" && b.text) texts.push(b.text);
+      }
+    }
+    return texts.join("\n");
+  }
+  return "";
 }
 
 function extractText(content: string | ContentBlock[] | unknown): string {

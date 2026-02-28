@@ -100,11 +100,12 @@ function parsePrompt(text: string): ParsedSegment[] {
     if (nextTag === -1) {
       segments.push({ type: "text", text: remaining });
       remaining = "";
+    } else if (nextTag === 0) {
+      // Lone '<' not matched by any pattern — consume it as text to avoid infinite loop
+      segments.push({ type: "text", text: "<" });
+      remaining = remaining.slice(1);
     } else {
-      const plain = remaining.slice(0, nextTag);
-      if (plain.trim()) {
-        segments.push({ type: "text", text: plain });
-      }
+      segments.push({ type: "text", text: remaining.slice(0, nextTag) });
       remaining = remaining.slice(nextTag);
     }
   }

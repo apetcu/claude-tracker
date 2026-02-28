@@ -17,6 +17,9 @@ export function computeSessionMetrics(session: ParsedSession): SessionMetrics {
     linesAdded: session.linesAdded,
     linesRemoved: session.linesRemoved,
     fileContributions: session.fileContributions,
+    humanLines: session.humanLines,
+    humanWords: session.humanWords,
+    humanChars: session.humanChars,
   };
 }
 
@@ -28,12 +31,18 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
   linesRemoved: number;
   timeline: GlobalMetrics["timeline"];
   fileContributions: Record<string, FileContribution>;
+  humanLines: number;
+  humanWords: number;
+  humanChars: number;
 } {
   const tokens = { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 };
   const toolUsage: Record<string, number> = {};
   let totalMessages = 0;
   let linesAdded = 0;
   let linesRemoved = 0;
+  let humanLines = 0;
+  let humanWords = 0;
+  let humanChars = 0;
   const fileContributions: Record<string, FileContribution> = {};
 
   const dayMap = new Map<string, { sessions: number; messages: number }>();
@@ -51,6 +60,9 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
     totalMessages += s.messages.length;
     linesAdded += s.linesAdded;
     linesRemoved += s.linesRemoved;
+    humanLines += s.humanLines;
+    humanWords += s.humanWords;
+    humanChars += s.humanChars;
 
     for (const [filePath, fc] of Object.entries(s.fileContributions)) {
       const existing = fileContributions[filePath] ??= { added: 0, removed: 0 };
@@ -71,7 +83,7 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
     .map(([date, data]) => ({ date, ...data }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  return { tokens, toolUsage, totalMessages, linesAdded, linesRemoved, timeline, fileContributions };
+  return { tokens, toolUsage, totalMessages, linesAdded, linesRemoved, timeline, fileContributions, humanLines, humanWords, humanChars };
 }
 
 export function computeGlobalMetrics(
@@ -102,5 +114,8 @@ export function computeProjectMetrics(sessions: ParsedSession[]): ProjectMetrics
     totalLinesAdded: agg.linesAdded,
     totalLinesRemoved: agg.linesRemoved,
     fileContributions: agg.fileContributions,
+    humanLines: agg.humanLines,
+    humanWords: agg.humanWords,
+    humanChars: agg.humanChars,
   };
 }

@@ -109,6 +109,9 @@ export interface SessionMetrics {
   linesAdded: number;
   linesRemoved: number;
   fileContributions: Record<string, FileContribution>;
+  humanLines: number;
+  humanWords: number;
+  humanChars: number;
 }
 
 export interface GlobalMetrics {
@@ -140,4 +143,7 @@ export interface ProjectMetrics {
   totalLinesAdded: number;
   totalLinesRemoved: number;
   fileContributions: Record<string, FileContribution>;
+  humanLines: number;
+  humanWords: number;
+  humanChars: number;
 }
