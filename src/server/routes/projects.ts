@@ -94,7 +94,7 @@ app.get("/:id/sessions", async (c) => {
       return {
         id: session.sessionId,
         firstPrompt: session.firstPrompt,
-        startedAt: session.startedAt,
+        startedAt: session.startedAt || f.mtime.toISOString(),
         messageCount: session.messages.length,
         toolUseCount: Object.values(session.toolUsage).reduce((a, b) => a + b, 0),
         durationMs: session.durationMs,

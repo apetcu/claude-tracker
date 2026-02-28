@@ -29,7 +29,7 @@ app.get("/:id", async (c) => {
         id: session.sessionId,
         projectId: project.id,
         projectName: humanizeName(project.id, project.dir),
-        startedAt: session.startedAt,
+        startedAt: session.startedAt || file.mtime.toISOString(),
         messages: session.messages,
         metrics: computeSessionMetrics(session),
         source: file.source,

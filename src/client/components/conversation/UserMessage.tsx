@@ -52,7 +52,7 @@ export function UserMessage({ message }: UserMessageProps) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-[11px] text-text-muted mb-1.5">
-          {new Date(message.timestamp).toLocaleTimeString()}
+          {message.timestamp && new Date(message.timestamp).toLocaleTimeString()}
         </div>
         {text && (
           hasXmlTags(text) ? (

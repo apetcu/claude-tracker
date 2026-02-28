@@ -89,8 +89,12 @@ function getComposerCreatedAt(dbPath: string, composerId: string): string {
           const composer = (data.allComposers ?? []).find(
             (c: { composerId: string }) => c.composerId === composerId
           );
-          if (composer?.createdAt && composer.createdAt > 1_000_000_000_000) {
-            return new Date(composer.createdAt).toISOString();
+          if (composer?.createdAt && composer.createdAt > 1_000_000_000) {
+            // createdAt may be in milliseconds or seconds
+            const ts = composer.createdAt > 1_000_000_000_000
+              ? composer.createdAt
+              : composer.createdAt * 1000;
+            return new Date(ts).toISOString();
           }
         }
       }
@@ -164,13 +168,33 @@ function buildParsedSession(
   let humanChars = 0;
   let durationMs = 0;
 
+  // Base epoch ms from composer createdAt (used for relative offset calculations)
+  const baseEpoch = composerCreatedAt ? new Date(composerCreatedAt).getTime() : 0;
+
   for (const bubble of bubbles) {
     const rawStart = bubble.timingInfo?.clientStartTime;
     const rawEnd = bubble.timingInfo?.clientEndTime ?? bubble.timingInfo?.clientSettleTime;
-    // Some timing values are relative offsets (small numbers) rather than epoch ms — skip those
-    const startTime = rawStart && rawStart > 1_000_000_000_000 ? rawStart : undefined;
-    const endTime = rawEnd && rawEnd > 1_000_000_000_000 ? rawEnd : undefined;
-    const ts = startTime ? new Date(startTime).toISOString() : "";
+
+    let startTime: number | undefined;
+    let endTime: number | undefined;
+
+    if (rawStart && rawStart > 1_000_000_000_000) {
+      // Absolute epoch ms
+      startTime = rawStart;
+    } else if (rawStart && rawStart > 0 && baseEpoch) {
+      // Relative offset — add to composer creation time
+      startTime = baseEpoch + rawStart;
+    }
+
+    if (rawEnd && rawEnd > 1_000_000_000_000) {
+      endTime = rawEnd;
+    } else if (rawEnd && rawEnd > 0 && baseEpoch) {
+      endTime = baseEpoch + rawEnd;
+    }
+
+    const ts = startTime
+      ? new Date(startTime).toISOString()
+      : composerCreatedAt;
 
     if (ts) {
       if (!startedAt) startedAt = ts;

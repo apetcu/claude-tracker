@@ -38,7 +38,7 @@ export function AssistantMessage({ message }: AssistantMessageProps) {
       </div>
       <div className="flex-1 min-w-0 space-y-2">
         <div className="text-[11px] text-text-muted flex items-center gap-2">
-          <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
+          {message.timestamp && <span>{new Date(message.timestamp).toLocaleTimeString()}</span>}
           {totalTokens > 0 && (
             <span className="px-1.5 py-0.5 rounded bg-surface-tertiary text-text-muted">
               {formatNumber(totalTokens)} tokens
