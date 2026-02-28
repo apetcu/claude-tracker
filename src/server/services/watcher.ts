@@ -1,5 +1,5 @@
 import { watch, type FSWatcher } from "fs";
-import { readFile, stat } from "fs/promises";
+import { stat } from "fs/promises";
 import { join } from "path";
 import { getProjectsDir } from "./scanner";
 import { invalidateSession } from "./cache";
@@ -15,6 +15,18 @@ export interface ActivityEvent {
   action?: string;
   /** Extra detail: tool name, file path, command, etc. */
   detail?: string;
+  /** First user prompt in the session */
+  firstPrompt?: string;
+  /** Working directory for the session */
+  cwd?: string;
+  /** Model being used */
+  model?: string;
+  /** Cost info from the session (input + output tokens) */
+  costUsd?: number;
+  /** Total message count so far */
+  messageCount?: number;
+  /** Total tool use count so far */
+  toolUseCount?: number;
 }
 
 type BroadcastFn = (data: ActivityEvent) => void;
@@ -22,21 +34,114 @@ type BroadcastFn = (data: ActivityEvent) => void;
 let watcher: FSWatcher | null = null;
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+interface ExtractedAction {
+  action: string;
+  detail: string;
+  firstPrompt?: string;
+  cwd?: string;
+  model?: string;
+  costUsd?: number;
+  messageCount?: number;
+  toolUseCount?: number;
+}
+
 /**
- * Read the last ~8KB of a JSONL file and extract the latest meaningful event.
+ * Read session file and extract the latest meaningful event plus session metadata.
  */
 async function extractLatestAction(
   filePath: string
-): Promise<{ action: string; detail: string }> {
+): Promise<ExtractedAction> {
   try {
     const s = await stat(filePath);
     const size = s.size;
-    // Read last 8KB to find the final events
-    const chunkSize = Math.min(size, 8192);
-    const fd = Bun.file(filePath);
-    const buf = await fd.slice(size - chunkSize, size).text();
 
-    const lines = buf.split("\n").filter((l) => l.trim());
+    // Read the full file for metadata, but only if reasonably sized.
+    // For large files, read head (for metadata) + tail (for latest action).
+    const fd = Bun.file(filePath);
+    let headBuf = "";
+    let tailBuf = "";
+
+    if (size <= 32768) {
+      // Small file: read everything
+      headBuf = await fd.text();
+      tailBuf = headBuf;
+    } else {
+      // Large file: read first 8KB for metadata + last 8KB for latest action
+      headBuf = await fd.slice(0, 8192).text();
+      tailBuf = await fd.slice(size - 8192, size).text();
+    }
+
+    // Extract metadata from the head
+    const headLines = headBuf.split("\n").filter((l) => l.trim());
+    let firstPrompt = "";
+    let cwd = "";
+    let model = "";
+
+    for (const line of headLines) {
+      let ev: Record<string, unknown>;
+      try { ev = JSON.parse(line); } catch { continue; }
+
+      // Get cwd and model from the first system/init event
+      if (!cwd && ev.cwd) cwd = String(ev.cwd);
+      if (!model && ev.model) model = String(ev.model);
+      if (!model && ev.message) {
+        const msg = ev.message as Record<string, unknown>;
+        if (msg.model) model = String(msg.model);
+      }
+
+      // Get first user prompt
+      if (!firstPrompt && ev.type === "user") {
+        const msg = ev.message as Record<string, unknown> | undefined;
+        if (msg?.content) {
+          const content = msg.content;
+          if (typeof content === "string") {
+            firstPrompt = content.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().slice(0, 150);
+          } else if (Array.isArray(content)) {
+            const textBlock = (content as Record<string, unknown>[]).find((b) => b.type === "text");
+            if (textBlock?.text) {
+              firstPrompt = String(textBlock.text).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().slice(0, 150);
+            }
+          }
+        }
+      }
+
+      if (firstPrompt && cwd && model) break;
+    }
+
+    // Count messages and tool uses from all available lines
+    const allLines = size <= 32768 ? headBuf.split("\n") : [...headBuf.split("\n"), ...tailBuf.split("\n")];
+    let messageCount = 0;
+    let toolUseCount = 0;
+    let costUsd = 0;
+
+    for (const line of allLines) {
+      if (!line.trim()) continue;
+      let ev: Record<string, unknown>;
+      try { ev = JSON.parse(line); } catch { continue; }
+
+      if (ev.type === "user" || ev.type === "assistant") messageCount++;
+
+      if (ev.type === "assistant") {
+        const msg = ev.message as Record<string, unknown> | undefined;
+        if (msg?.content && Array.isArray(msg.content)) {
+          for (const block of msg.content as Record<string, unknown>[]) {
+            if (block.type === "tool_use") toolUseCount++;
+          }
+        }
+        // Extract cost from usage
+        if (msg?.usage) {
+          const usage = msg.usage as Record<string, unknown>;
+          const inputTokens = (usage.input_tokens as number) || 0;
+          const outputTokens = (usage.output_tokens as number) || 0;
+          // Approximate cost (Claude Sonnet pricing as rough estimate)
+          costUsd += (inputTokens * 3 + outputTokens * 15) / 1_000_000;
+        }
+      }
+    }
+
+    // Extract latest action from the tail
+    const lines = tailBuf.split("\n").filter((l) => l.trim());
+    const meta = { firstPrompt, cwd, model, costUsd: costUsd || undefined, messageCount, toolUseCount };
 
     // Walk backwards to find the last meaningful event
     for (let i = lines.length - 1; i >= 0; i--) {
@@ -60,9 +165,9 @@ async function extractLatestAction(
         if (sub === "turn_duration") {
           const ms = event.durationMs as number;
           const secs = Math.round(ms / 1000);
-          return { action: "Turn completed", detail: `${secs}s` };
+          return { action: "Turn completed", detail: `${secs}s`, ...meta };
         }
-        return { action: `System: ${sub ?? "event"}`, detail: "" };
+        return { action: `System: ${sub ?? "event"}`, detail: "", ...meta };
       }
 
       // Assistant message with tool use or text
@@ -81,6 +186,7 @@ async function extractLatestAction(
               return {
                 action: `Using ${name}`,
                 detail: summarizeToolInput(name, input),
+                ...meta,
               };
             }
             if (block.type === "text" && block.text) {
@@ -89,6 +195,7 @@ async function extractLatestAction(
                 return {
                   action: "Responding",
                   detail: text.slice(0, 120),
+                  ...meta,
                 };
               }
             }
@@ -96,7 +203,7 @@ async function extractLatestAction(
         }
 
         if (typeof content === "string" && content.trim()) {
-          return { action: "Responding", detail: content.trim().slice(0, 120) };
+          return { action: "Responding", detail: content.trim().slice(0, 120), ...meta };
         }
         continue;
       }
@@ -112,7 +219,7 @@ async function extractLatestAction(
           for (const block of content) {
             const b = block as Record<string, unknown>;
             if (b.type === "tool_result") {
-              return { action: "Tool result received", detail: "" };
+              return { action: "Tool result received", detail: "", ...meta };
             }
           }
         }
@@ -125,7 +232,7 @@ async function extractLatestAction(
               : "";
 
         if (text.trim()) {
-          return { action: "User message", detail: text.trim().slice(0, 120) };
+          return { action: "User message", detail: text.trim().slice(0, 120), ...meta };
         }
       }
     }
@@ -133,7 +240,7 @@ async function extractLatestAction(
     // File read error - not critical
   }
 
-  return { action: "Activity detected", detail: "" };
+  return { action: "Activity detected", detail: "", firstPrompt: "", cwd: "", model: "", messageCount: 0, toolUseCount: 0 };
 }
 
 function summarizeToolInput(
@@ -198,7 +305,7 @@ export function startWatcher(broadcast: BroadcastFn): void {
 
         invalidateSession(sessionId);
 
-        const { action, detail } = await extractLatestAction(filePath);
+        const extracted = await extractLatestAction(filePath);
 
         broadcast({
           type: "session:updated",
@@ -206,8 +313,7 @@ export function startWatcher(broadcast: BroadcastFn): void {
           projectName: humanizeName(projectId),
           sessionId,
           timestamp: new Date().toISOString(),
-          action,
-          detail,
+          ...extracted,
         });
       }, 500)
     );
