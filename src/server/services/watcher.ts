@@ -1,6 +1,7 @@
 import { watch, type FSWatcher } from "fs";
-import { stat } from "fs/promises";
+import { stat, access } from "fs/promises";
 import { join } from "path";
+import { homedir } from "os";
 import { getProjectsDir } from "./scanner";
 import { invalidateSession } from "./cache";
 import { humanizeName } from "./util";
@@ -27,6 +28,8 @@ export interface ActivityEvent {
   messageCount?: number;
   /** Total tool use count so far */
   toolUseCount?: number;
+  /** Data source: claude or cursor */
+  source?: string;
 }
 
 type BroadcastFn = (data: ActivityEvent) => void;
@@ -325,8 +328,64 @@ export function startWatcher(broadcast: BroadcastFn): void {
 export function stopWatcher(): void {
   watcher?.close();
   watcher = null;
+  cursorWatcher?.close();
+  cursorWatcher = null;
   for (const timer of debounceTimers.values()) {
     clearTimeout(timer);
   }
   debounceTimers.clear();
+}
+
+// --- Cursor Watcher ---
+
+let cursorWatcher: FSWatcher | null = null;
+
+const CURSOR_GLOBAL_STORAGE = join(
+  homedir(),
+  "Library",
+  "Application Support",
+  "Cursor",
+  "User",
+  "globalStorage"
+);
+
+export async function startCursorWatcher(broadcast: BroadcastFn): Promise<void> {
+  try {
+    await access(CURSOR_GLOBAL_STORAGE);
+  } catch {
+    // Cursor not installed — skip silently
+    return;
+  }
+
+  try {
+    cursorWatcher = watch(CURSOR_GLOBAL_STORAGE, {}, (_eventType, filename) => {
+      if (!filename || !filename.includes("state.vscdb")) return;
+
+      const debounceKey = "cursor:global";
+      const existing = debounceTimers.get(debounceKey);
+      if (existing) clearTimeout(existing);
+
+      debounceTimers.set(
+        debounceKey,
+        setTimeout(async () => {
+          debounceTimers.delete(debounceKey);
+
+          broadcast({
+            type: "session:updated",
+            projectId: "cursor",
+            projectName: "Cursor",
+            sessionId: "",
+            timestamp: new Date().toISOString(),
+            action: "Activity detected",
+            detail: "Cursor session updated",
+            source: "cursor",
+          });
+        }, 2000) // Longer debounce for SQLite writes
+      );
+    });
+
+    console.log(`[watcher] Watching Cursor global storage at ${CURSOR_GLOBAL_STORAGE}`);
+  } catch (err) {
+    console.warn(`[watcher] Could not watch Cursor directory:`, err);
+  }
 }

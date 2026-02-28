@@ -1,6 +1,7 @@
 import { Hono } from "hono";
-import { scanProjects } from "../services/scanner";
+import { scanAllProjects } from "../services/scanner";
 import { parseSessionFile } from "../services/parser";
+import { parseCursorSession } from "../services/cursor-parser";
 import { getCachedSession } from "../services/cache";
 import {
   computeGlobalMetrics,
@@ -10,14 +11,18 @@ import {
 
 const app = new Hono();
 
+function getParser(source: string) {
+  return source === "cursor" ? parseCursorSession : parseSessionFile;
+}
+
 // GET /api/metrics/global
 app.get("/global", async (c) => {
-  const projects = await scanProjects();
+  const projects = await scanAllProjects();
 
   const allSessions = await Promise.all(
     projects.flatMap((p) =>
       p.sessionFiles.map((f) =>
-        getCachedSession(f.id, f.path, parseSessionFile, p.id)
+        getCachedSession(f.id, f.path, getParser(f.source), p.id)
       )
     )
   );
@@ -29,14 +34,14 @@ app.get("/global", async (c) => {
 // GET /api/metrics/project/:id
 app.get("/project/:id", async (c) => {
   const id = c.req.param("id");
-  const projects = await scanProjects();
+  const projects = await scanAllProjects();
   const project = projects.find((p) => p.id === id);
 
   if (!project) return c.json({ error: "Project not found" }, 404);
 
   const sessions = await Promise.all(
     project.sessionFiles.map((f) =>
-      getCachedSession(f.id, f.path, parseSessionFile, project.id)
+      getCachedSession(f.id, f.path, getParser(f.source), project.id)
     )
   );
 
@@ -46,7 +51,7 @@ app.get("/project/:id", async (c) => {
 // GET /api/metrics/session/:id
 app.get("/session/:id", async (c) => {
   const sessionId = c.req.param("id");
-  const projects = await scanProjects();
+  const projects = await scanAllProjects();
 
   for (const project of projects) {
     const file = project.sessionFiles.find((f) => f.id === sessionId);
@@ -54,7 +59,7 @@ app.get("/session/:id", async (c) => {
       const session = await getCachedSession(
         sessionId,
         file.path,
-        parseSessionFile,
+        getParser(file.source),
         project.id
       );
       return c.json(computeSessionMetrics(session));

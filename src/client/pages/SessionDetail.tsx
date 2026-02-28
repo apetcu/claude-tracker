@@ -14,6 +14,7 @@ interface SessionData {
   startedAt: string;
   messages: ConversationMessage[];
   metrics: SessionMetrics;
+  source?: "claude" | "cursor";
 }
 
 interface ConversationMessage {
@@ -111,6 +112,11 @@ export function SessionDetail() {
           </Link>
           <span className="text-xs text-text-muted">/</span>
           <span className="text-xs text-text-muted font-mono">{session.id.slice(0, 8)}</span>
+          {session.source === "cursor" && (
+            <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-teal-500/15 text-teal-400 uppercase tracking-wider">
+              Cursor
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <span className="text-[11px] text-text-muted">
               {formatDate(session.startedAt)} &middot; {formatRelative(session.startedAt)}

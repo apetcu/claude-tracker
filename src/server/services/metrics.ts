@@ -3,6 +3,7 @@ import type {
   GlobalMetrics,
   ProjectMetrics,
   FileContribution,
+  SourceLines,
 } from "../types";
 import type { ParsedSession } from "./parser";
 
@@ -29,6 +30,7 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
   totalMessages: number;
   linesAdded: number;
   linesRemoved: number;
+  linesBySource: Record<string, SourceLines>;
   timeline: GlobalMetrics["timeline"];
   fileContributions: Record<string, FileContribution>;
   humanLines: number;
@@ -44,8 +46,9 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
   let humanWords = 0;
   let humanChars = 0;
   const fileContributions: Record<string, FileContribution> = {};
+  const linesBySource: Record<string, SourceLines> = {};
 
-  const dayMap = new Map<string, { sessions: number; messages: number }>();
+  const dayMap = new Map<string, { sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number }>();
 
   for (const s of sessions) {
     tokens.input += s.totalTokens.input;
@@ -64,6 +67,12 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
     humanWords += s.humanWords;
     humanChars += s.humanChars;
 
+    // Track lines per source
+    const src = s.source ?? "claude";
+    const srcLines = linesBySource[src] ??= { added: 0, removed: 0 };
+    srcLines.added += s.linesAdded;
+    srcLines.removed += s.linesRemoved;
+
     for (const [filePath, fc] of Object.entries(s.fileContributions)) {
       const existing = fileContributions[filePath] ??= { added: 0, removed: 0 };
       existing.added += fc.added;
@@ -72,9 +81,16 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
 
     if (s.startedAt) {
       const day = s.startedAt.split("T")[0];
-      const existing = dayMap.get(day) ?? { sessions: 0, messages: 0 };
+      const existing = dayMap.get(day) ?? { sessions: 0, messages: 0, claudeSessions: 0, claudeMessages: 0, cursorSessions: 0, cursorMessages: 0 };
       existing.sessions += 1;
       existing.messages += s.messages.length;
+      if (src === "cursor") {
+        existing.cursorSessions += 1;
+        existing.cursorMessages += s.messages.length;
+      } else {
+        existing.claudeSessions += 1;
+        existing.claudeMessages += s.messages.length;
+      }
       dayMap.set(day, existing);
     }
   }
@@ -83,7 +99,7 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
     .map(([date, data]) => ({ date, ...data }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  return { tokens, toolUsage, totalMessages, linesAdded, linesRemoved, timeline, fileContributions, humanLines, humanWords, humanChars };
+  return { tokens, toolUsage, totalMessages, linesAdded, linesRemoved, linesBySource, timeline, fileContributions, humanLines, humanWords, humanChars };
 }
 
 export function computeGlobalMetrics(
@@ -113,6 +129,7 @@ export function computeProjectMetrics(sessions: ParsedSession[]): ProjectMetrics
     toolUsage: agg.toolUsage,
     totalLinesAdded: agg.linesAdded,
     totalLinesRemoved: agg.linesRemoved,
+    linesBySource: agg.linesBySource,
     fileContributions: agg.fileContributions,
     humanLines: agg.humanLines,
     humanWords: agg.humanWords,

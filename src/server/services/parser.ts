@@ -3,6 +3,7 @@ import type {
   RawEvent,
   ConversationMessage,
   ContentBlock,
+  DataSource,
 } from "../types";
 
 const SKIP_TYPES = new Set(["progress", "queue-operation", "file-history-snapshot"]);
@@ -32,6 +33,7 @@ export interface ParsedSession {
   humanWords: number;
   /** Human contribution: character count in user messages */
   humanChars: number;
+  source: DataSource;
 }
 
 export async function parseSessionFile(
@@ -214,6 +216,7 @@ export async function parseSessionFile(
     humanLines,
     humanWords,
     humanChars,
+    source: "claude",
   };
 }
 

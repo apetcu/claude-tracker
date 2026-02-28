@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import projectsRoutes from "./routes/projects";
 import sessionsRoutes from "./routes/sessions";
 import metricsRoutes from "./routes/metrics";
-import { startWatcher } from "./services/watcher";
+import { startWatcher, startCursorWatcher } from "./services/watcher";
 import { invalidateAll } from "./services/cache";
 
 const app = new Hono();
@@ -35,8 +35,9 @@ function broadcast(data: object): void {
   }
 }
 
-// Start file watcher
+// Start file watchers
 startWatcher(broadcast);
+startCursorWatcher(broadcast);
 
 const server = Bun.serve({
   port: 3001,

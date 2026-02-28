@@ -19,7 +19,7 @@ interface GlobalMetrics {
   totalMessages: number;
   totalTokens: { input: number; output: number; cacheRead: number; cacheCreation: number };
   toolUsage: Record<string, number>;
-  timeline: { date: string; sessions: number; messages: number }[];
+  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number }[];
   totalLinesAdded: number;
   totalLinesRemoved: number;
 }

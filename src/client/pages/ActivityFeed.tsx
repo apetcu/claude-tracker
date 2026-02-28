@@ -131,6 +131,7 @@ export function ActivityFeed() {
             const detail = (event.detail as string) ?? "";
             const projectName = (event.projectName as string) ?? event.projectId ?? "";
             const firstPrompt = (event.firstPrompt as string) ?? "";
+            const source = (event.source as string) ?? "";
             const model = shortModel((event.model as string) ?? "");
             const messageCount = (event.messageCount as number) ?? 0;
             const toolUseCount = (event.toolUseCount as number) ?? 0;
@@ -150,6 +151,12 @@ export function ActivityFeed() {
                   >
                     {projectName}
                   </Link>
+
+                  {source === "cursor" && (
+                    <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-teal-500/15 text-teal-400 shrink-0 uppercase tracking-wider">
+                      Cursor
+                    </span>
+                  )}
 
                   <span className={`inline-flex items-center gap-1 text-[11px] font-mono font-medium px-1.5 py-0.5 rounded bg-surface-primary shrink-0 ${actionColor(action)}`}>
                     <ActionIcon action={action} />

@@ -51,6 +51,10 @@ export interface TokenUsage {
   };
 }
 
+// --- Data source ---
+
+export type DataSource = "claude" | "cursor";
+
 // --- Processed types ---
 
 export interface Project {
@@ -60,6 +64,7 @@ export interface Project {
   sessionCount: number;
   lastActive: string;
   messageCount: number;
+  source?: DataSource;
 }
 
 export interface SessionSummary {
@@ -70,6 +75,7 @@ export interface SessionSummary {
   messageCount: number;
   toolUseCount: number;
   durationMs: number;
+  source?: DataSource;
 }
 
 export interface ConversationMessage {
@@ -87,6 +93,7 @@ export interface SessionDetail {
   startedAt: string;
   messages: ConversationMessage[];
   metrics: SessionMetrics;
+  source?: DataSource;
 }
 
 export interface FileContribution {
@@ -125,9 +132,14 @@ export interface GlobalMetrics {
     cacheCreation: number;
   };
   toolUsage: Record<string, number>;
-  timeline: { date: string; sessions: number; messages: number }[];
+  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number }[];
   totalLinesAdded: number;
   totalLinesRemoved: number;
+}
+
+export interface SourceLines {
+  added: number;
+  removed: number;
 }
 
 export interface ProjectMetrics {
@@ -142,6 +154,7 @@ export interface ProjectMetrics {
   toolUsage: Record<string, number>;
   totalLinesAdded: number;
   totalLinesRemoved: number;
+  linesBySource: Record<string, SourceLines>;
   fileContributions: Record<string, FileContribution>;
   humanLines: number;
   humanWords: number;
