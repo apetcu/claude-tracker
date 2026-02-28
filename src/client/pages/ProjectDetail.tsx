@@ -3,6 +3,7 @@ import { useApi } from "../hooks/useApi";
 import { StatCard } from "../components/metrics/StatCard";
 import { ToolBreakdown } from "../components/metrics/ToolBreakdown";
 import { FileContributions } from "../components/metrics/FileContributions";
+import { ActivityTimeline } from "../components/metrics/ActivityTimeline";
 import { formatDate, formatRelative, formatDuration, formatNumber } from "../lib/format";
 import { PromptText } from "../components/PromptText";
 
@@ -40,6 +41,7 @@ interface ProjectMetrics {
   totalLinesRemoved: number;
   linesBySource: Record<string, SourceLines>;
   fileContributions: Record<string, { added: number; removed: number }>;
+  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number }[];
   humanLines?: number;
   humanWords?: number;
   humanChars?: number;
@@ -251,6 +253,11 @@ export function ProjectDetail() {
           </div>
         );
       })()}
+
+      {/* Activity timeline */}
+      {metrics?.timeline && metrics.timeline.length > 0 && (
+        <ActivityTimeline data={metrics.timeline} />
+      )}
 
       {/* Tool usage & file contributions */}
       {metrics && (

@@ -131,6 +131,7 @@ export function computeProjectMetrics(sessions: ParsedSession[]): ProjectMetrics
     totalLinesRemoved: agg.linesRemoved,
     linesBySource: agg.linesBySource,
     fileContributions: agg.fileContributions,
+    timeline: agg.timeline,
     humanLines: agg.humanLines,
     humanWords: agg.humanWords,
     humanChars: agg.humanChars,
