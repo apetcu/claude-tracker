@@ -1,4 +1,5 @@
 import Markdown from "react-markdown";
+import { PromptText } from "../PromptText";
 
 interface ContentBlock {
   type: string;
@@ -14,27 +15,35 @@ interface UserMessageProps {
   };
 }
 
-function extractText(content: string | ContentBlock[]): string {
-  if (typeof content === "string") return content;
-  return content
-    .map((b) => {
-      if (b.type === "text" && b.text) return b.text;
-      if (b.type === "tool_result") {
-        if (typeof b.content === "string") return `[Tool result]: ${b.content.slice(0, 200)}`;
-        if (Array.isArray(b.content))
-          return b.content
-            .filter((c) => c.type === "text")
-            .map((c) => `[Tool result]: ${c.text?.slice(0, 200)}`)
-            .join("\n");
+function extractParts(content: string | ContentBlock[]): { text: string; toolResults: string[] } {
+  if (typeof content === "string") return { text: content, toolResults: [] };
+  const toolResults: string[] = [];
+  const texts: string[] = [];
+
+  for (const b of content) {
+    if (b.type === "text" && b.text) {
+      texts.push(b.text);
+    } else if (b.type === "tool_result") {
+      if (typeof b.content === "string") {
+        toolResults.push(b.content.slice(0, 200));
+      } else if (Array.isArray(b.content)) {
+        for (const c of b.content) {
+          if (c.type === "text") toolResults.push(c.text?.slice(0, 200) ?? "");
+        }
       }
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n");
+    }
+  }
+
+  return { text: texts.join("\n"), toolResults };
+}
+
+/** Check if text has XML-like tags that PromptText should handle */
+function hasXmlTags(text: string): boolean {
+  return /<(teammate-message|command-message|command-name)\b/.test(text);
 }
 
 export function UserMessage({ message }: UserMessageProps) {
-  const text = extractText(message.content);
+  const { text, toolResults } = extractParts(message.content);
 
   return (
     <div className="flex gap-3">
@@ -42,12 +51,32 @@ export function UserMessage({ message }: UserMessageProps) {
         U
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-xs text-text-muted mb-1">
+        <div className="text-[11px] text-text-muted mb-1.5">
           {new Date(message.timestamp).toLocaleTimeString()}
         </div>
-        <div className="prose prose-invert prose-sm max-w-none text-text-primary">
-          <Markdown>{text.slice(0, 5000)}</Markdown>
-        </div>
+        {text && (
+          hasXmlTags(text) ? (
+            <div className="text-sm text-text-primary">
+              <PromptText text={text} maxLength={5000} />
+            </div>
+          ) : (
+            <div className="prose prose-invert prose-sm max-w-none text-text-primary">
+              <Markdown>{text.slice(0, 5000)}</Markdown>
+            </div>
+          )
+        )}
+        {toolResults.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {toolResults.map((tr, i) => (
+              <div
+                key={i}
+                className="text-[11px] text-text-muted font-mono bg-surface-tertiary rounded px-2 py-1 truncate"
+              >
+                Tool result: {tr}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useWebSocket } from "../hooks/useWebSocket";
 import { formatRelative } from "../lib/format";
 import { Link } from "react-router-dom";
+import { PromptText } from "../components/PromptText";
 
 const ACTION_COLORS: Record<string, string> = {
   "Using Read": "text-blue-400",
@@ -170,8 +171,8 @@ export function ActivityFeed() {
 
                 {/* Row 2: First prompt (what the session is about) */}
                 {firstPrompt && (
-                  <div className="mt-1.5 text-xs text-text-secondary truncate" title={firstPrompt}>
-                    {firstPrompt}
+                  <div className="mt-1.5 text-xs text-text-secondary truncate">
+                    <PromptText text={firstPrompt} maxLength={150} />
                   </div>
                 )}
 

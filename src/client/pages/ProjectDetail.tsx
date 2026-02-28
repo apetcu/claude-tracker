@@ -3,7 +3,8 @@ import { useApi } from "../hooks/useApi";
 import { StatCard } from "../components/metrics/StatCard";
 import { ToolBreakdown } from "../components/metrics/ToolBreakdown";
 import { FileContributions } from "../components/metrics/FileContributions";
-import { formatDate, formatRelative, formatDuration, truncate, formatNumber } from "../lib/format";
+import { formatDate, formatRelative, formatDuration, formatNumber } from "../lib/format";
+import { PromptText } from "../components/PromptText";
 
 interface ProjectInfo {
   id: string;
@@ -85,7 +86,7 @@ export function ProjectDetail() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-text-primary truncate">
-                      {truncate(s.firstPrompt || "No prompt", 120)}
+                      <PromptText text={s.firstPrompt} maxLength={120} />
                     </div>
                     <div className="flex gap-3 mt-1 text-xs text-text-muted">
                       <span>{formatDate(s.startedAt)}</span>

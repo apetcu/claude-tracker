@@ -95,11 +95,11 @@ async function extractLatestAction(
         if (msg?.content) {
           const content = msg.content;
           if (typeof content === "string") {
-            firstPrompt = content.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().slice(0, 150);
+            firstPrompt = content.replace(/\s+/g, " ").trim().slice(0, 200);
           } else if (Array.isArray(content)) {
             const textBlock = (content as Record<string, unknown>[]).find((b) => b.type === "text");
             if (textBlock?.text) {
-              firstPrompt = String(textBlock.text).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().slice(0, 150);
+              firstPrompt = String(textBlock.text).replace(/\s+/g, " ").trim().slice(0, 200);
             }
           }
         }

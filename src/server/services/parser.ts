@@ -194,17 +194,13 @@ export async function parseSessionFile(
   };
 }
 
-function stripXmlTags(text: string): string {
-  return text.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-}
-
 function extractText(content: string | ContentBlock[] | unknown): string {
-  if (typeof content === "string") return stripXmlTags(content);
+  if (typeof content === "string") return content.replace(/\s+/g, " ").trim();
   if (Array.isArray(content)) {
     for (const block of content) {
       if (typeof block === "object" && block !== null) {
         const b = block as ContentBlock;
-        if (b.type === "text" && b.text) return stripXmlTags(b.text);
+        if (b.type === "text" && b.text) return b.text.replace(/\s+/g, " ").trim();
       }
     }
   }
