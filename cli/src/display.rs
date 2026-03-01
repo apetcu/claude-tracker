@@ -2,7 +2,7 @@ use colored::Colorize;
 use tabled::{builder::Builder, settings::Style};
 
 use crate::format::{format_cost, format_number, format_relative, short_model};
-use crate::models::{GlobalMetrics, ProjectSummary};
+use crate::models::{DataSource, GlobalMetrics, ProjectSummary};
 
 pub fn print_cli_table(projects: &[ProjectSummary], metrics: &GlobalMetrics) {
     // Header stats
@@ -27,6 +27,7 @@ pub fn print_cli_table(projects: &[ProjectSummary], metrics: &GlobalMetrics) {
     let mut builder = Builder::default();
     builder.push_record([
         "Project",
+        "Source",
         "Sessions",
         "Messages",
         "Tokens",
@@ -37,8 +38,10 @@ pub fn print_cli_table(projects: &[ProjectSummary], metrics: &GlobalMetrics) {
     ]);
 
     for p in projects {
+        let source_label = source_label_str(&p.sources);
         builder.push_record([
             &p.name,
+            &source_label,
             &p.session_count.to_string(),
             &p.message_count.to_string(),
             &format_number(p.total_tokens.total()),
@@ -54,6 +57,16 @@ pub fn print_cli_table(projects: &[ProjectSummary], metrics: &GlobalMetrics) {
     println!();
 }
 
+fn source_label_str(sources: &[DataSource]) -> String {
+    if sources.contains(&DataSource::Claude) && sources.contains(&DataSource::Cursor) {
+        "Both".to_string()
+    } else if sources.contains(&DataSource::Cursor) {
+        "Cursor".to_string()
+    } else {
+        "Claude".to_string()
+    }
+}
+
 pub fn print_json(projects: &[ProjectSummary], metrics: &GlobalMetrics) {
     #[derive(serde::Serialize)]
     struct Output<'a> {
@@ -65,6 +78,7 @@ pub fn print_json(projects: &[ProjectSummary], metrics: &GlobalMetrics) {
     struct ProjectJson<'a> {
         name: &'a str,
         path: &'a str,
+        source: String,
         session_count: usize,
         message_count: usize,
         tokens_total: u64,
@@ -82,6 +96,7 @@ pub fn print_json(projects: &[ProjectSummary], metrics: &GlobalMetrics) {
             .map(|p| ProjectJson {
                 name: &p.name,
                 path: &p.path,
+                source: source_label_str(&p.sources),
                 session_count: p.session_count,
                 message_count: p.message_count,
                 tokens_total: p.total_tokens.total(),

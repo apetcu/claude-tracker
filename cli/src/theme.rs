@@ -91,6 +91,11 @@ pub struct ThemeColors {
     // Bar chart
     pub bar: Color,
     pub bar_alt: Color,
+    // Source badges
+    pub claude_badge: Color,
+    pub cursor_badge: Color,
+    // XML tag highlighting
+    pub xml_tag: Color,
 }
 
 impl ThemeColors {
@@ -115,6 +120,9 @@ impl ThemeColors {
             token_cache: Color::DarkGray,
             bar: Color::Cyan,
             bar_alt: Color::Blue,
+            claude_badge: Color::Cyan,
+            cursor_badge: Color::Yellow,
+            xml_tag: Color::Rgb(180, 140, 220),
         }
     }
 
@@ -139,6 +147,9 @@ impl ThemeColors {
             token_cache: Color::Rgb(98, 114, 164),
             bar: Color::Rgb(189, 147, 249),
             bar_alt: Color::Rgb(139, 233, 253),
+            claude_badge: Color::Rgb(139, 233, 253),
+            cursor_badge: Color::Rgb(241, 250, 140),
+            xml_tag: Color::Rgb(189, 147, 249),
         }
     }
 
@@ -163,6 +174,9 @@ impl ThemeColors {
             token_cache: Color::Rgb(88, 110, 117),
             bar: Color::Rgb(42, 161, 152),
             bar_alt: Color::Rgb(38, 139, 210),
+            claude_badge: Color::Rgb(38, 139, 210),
+            cursor_badge: Color::Rgb(181, 137, 0),
+            xml_tag: Color::Rgb(108, 113, 196),
         }
     }
 
@@ -187,6 +201,9 @@ impl ThemeColors {
             token_cache: Color::Rgb(76, 86, 106),
             bar: Color::Rgb(136, 192, 208),
             bar_alt: Color::Rgb(129, 161, 193),
+            claude_badge: Color::Rgb(136, 192, 208),
+            cursor_badge: Color::Rgb(235, 203, 139),
+            xml_tag: Color::Rgb(180, 142, 173),
         }
     }
 
@@ -211,6 +228,9 @@ impl ThemeColors {
             token_cache: Color::Rgb(117, 113, 94),
             bar: Color::Rgb(249, 38, 114),
             bar_alt: Color::Rgb(174, 129, 255),
+            claude_badge: Color::Rgb(102, 217, 239),
+            cursor_badge: Color::Rgb(230, 219, 116),
+            xml_tag: Color::Rgb(174, 129, 255),
         }
     }
 
@@ -235,6 +255,9 @@ impl ThemeColors {
             token_cache: Color::Rgb(146, 131, 116),
             bar: Color::Rgb(250, 189, 47),
             bar_alt: Color::Rgb(254, 128, 25),
+            claude_badge: Color::Rgb(131, 165, 152),
+            cursor_badge: Color::Rgb(250, 189, 47),
+            xml_tag: Color::Rgb(211, 134, 155),
         }
     }
 

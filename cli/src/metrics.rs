@@ -1,23 +1,30 @@
 use std::collections::HashMap;
 
-use crate::models::{GlobalMetrics, ParsedSession, ProjectSummary, TimelineEntry, TokenTotals};
+use crate::models::{DataSource, GlobalMetrics, ParsedSession, ProjectSummary, TimelineEntry, TokenTotals};
 use crate::format::estimate_cost;
 
 pub fn build_project_summaries(
-    projects: Vec<(String, Vec<ParsedSession>)>,
+    projects: Vec<(String, String, Vec<ParsedSession>, Vec<DataSource>)>,
 ) -> Vec<ProjectSummary> {
     let mut summaries: Vec<ProjectSummary> = Vec::new();
 
-    for (project_id, sessions) in projects {
+    for (project_id, project_dir, sessions, sources) in projects {
         if sessions.is_empty() {
             continue;
         }
 
-        // Derive project name from cwd or project_id
+        // Derive project name: session cwd > project dir > project_id
         let path = sessions
             .iter()
             .find(|s| !s.cwd.is_empty())
             .map(|s| s.cwd.clone())
+            .or_else(|| {
+                if !project_dir.is_empty() {
+                    Some(project_dir.clone())
+                } else {
+                    None
+                }
+            })
             .unwrap_or_default();
         let name = if !path.is_empty() {
             path.split('/').last().unwrap_or(&project_id).to_string()
@@ -76,6 +83,7 @@ pub fn build_project_summaries(
             cost,
             model,
             sessions,
+            sources,
         });
     }
 
@@ -127,11 +135,17 @@ pub fn compute_global_metrics(projects: &[ProjectSummary]) -> GlobalMetrics {
                         messages: 0,
                         token_input: 0,
                         token_output: 0,
+                        claude_sessions: 0,
+                        cursor_sessions: 0,
                     });
                     entry.sessions += 1;
                     entry.messages += s.messages.len() as u64;
                     entry.token_input += s.total_tokens.input;
                     entry.token_output += s.total_tokens.output;
+                    match s.source {
+                        DataSource::Claude => entry.claude_sessions += 1,
+                        DataSource::Cursor => entry.cursor_sessions += 1,
+                    }
                 }
             }
         }

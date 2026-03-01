@@ -1,6 +1,30 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// --- Data source enum ---
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DataSource {
+    Claude,
+    Cursor,
+}
+
+impl DataSource {
+    pub fn label(self) -> &'static str {
+        match self {
+            DataSource::Claude => "Claude",
+            DataSource::Cursor => "Cursor",
+        }
+    }
+}
+
+impl std::fmt::Display for DataSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.label())
+    }
+}
+
 // --- Raw JSONL event types ---
 
 #[allow(dead_code)]
@@ -68,6 +92,7 @@ pub struct ConversationMessage {
     pub timestamp: String,
     pub uuid: String,
     pub usage: Option<TokenUsage>,
+    pub content: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -89,7 +114,7 @@ pub struct ParsedSession {
     pub human_words: u64,
     pub human_chars: u64,
     pub model: String,
-    pub source: String, // "claude"
+    pub source: DataSource,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -97,12 +122,15 @@ pub struct SessionFile {
     pub id: String,
     pub path: String,
     pub size: u64,
+    pub source: DataSource,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ScannedProject {
     pub id: String,
     pub dir: String,
+    pub source: DataSource,
+    pub sources: Vec<DataSource>,
     pub session_files: Vec<SessionFile>,
 }
 
@@ -121,6 +149,7 @@ pub struct ProjectSummary {
     pub cost: f64,
     pub model: String,
     pub sessions: Vec<ParsedSession>,
+    pub sources: Vec<DataSource>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -130,6 +159,8 @@ pub struct TimelineEntry {
     pub messages: u64,
     pub token_input: u64,
     pub token_output: u64,
+    pub claude_sessions: u64,
+    pub cursor_sessions: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -146,4 +177,23 @@ pub struct GlobalMetrics {
     pub human_lines: u64,
     pub human_words: u64,
     pub human_chars: u64,
+}
+
+impl GlobalMetrics {
+    pub fn empty() -> Self {
+        Self {
+            total_projects: 0,
+            total_sessions: 0,
+            total_messages: 0,
+            total_tokens: TokenTotals::zero(),
+            tool_usage: HashMap::new(),
+            timeline: Vec::new(),
+            total_lines_added: 0,
+            total_lines_removed: 0,
+            total_cost: 0.0,
+            human_lines: 0,
+            human_words: 0,
+            human_chars: 0,
+        }
+    }
 }

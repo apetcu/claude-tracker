@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 
 use crate::models::{
-    ConversationMessage, FileContribution, ParsedSession, RawEvent, TokenTotals,
+    ConversationMessage, DataSource, FileContribution, ParsedSession, RawEvent, TokenTotals,
 };
 
 const SKIP_TYPES: &[&str] = &["progress", "queue-operation", "file-history-snapshot"];
@@ -140,18 +140,32 @@ pub fn parse_session_file(
                 human_chars += stripped.len() as u64;
             }
 
+            // Extract content for message thread
+            let content = extract_raw_text(&msg.content);
+            let content = strip_html(&content);
+
             messages.push(ConversationMessage {
                 role: "user".to_string(),
                 timestamp: tagged.ts.clone(),
                 uuid: tagged.event.uuid.clone().unwrap_or_default(),
                 usage: None,
+                content: content.trim().to_string(),
             });
         } else {
+            // Extract assistant text content (truncate to manage memory)
+            let raw_content = extract_raw_text(&msg.content);
+            let mut content = strip_html(&raw_content);
+            if content.len() > 5000 {
+                content.truncate(5000);
+                content.push_str("...");
+            }
+
             messages.push(ConversationMessage {
                 role: "assistant".to_string(),
                 timestamp: tagged.ts.clone(),
                 uuid: tagged.event.uuid.clone().unwrap_or_default(),
                 usage: msg.usage.clone(),
+                content: content.trim().to_string(),
             });
 
             if model.is_empty() {
@@ -237,11 +251,6 @@ pub fn parse_session_file(
         }
     }
 
-    // Truncate first prompt to 200 chars
-    if first_prompt.len() > 200 {
-        first_prompt.truncate(200);
-    }
-
     Ok(ParsedSession {
         session_id: session_id.to_string(),
         project_id: project_id.to_string(),
@@ -260,7 +269,7 @@ pub fn parse_session_file(
         human_words,
         human_chars,
         model,
-        source: "claude".to_string(),
+        source: DataSource::Claude,
     })
 }
 
@@ -285,7 +294,7 @@ fn extract_text(content: &serde_json::Value) -> String {
 }
 
 /// Extract raw text preserving newlines — for human contribution counting
-fn extract_raw_text(content: &serde_json::Value) -> String {
+pub fn extract_raw_text(content: &serde_json::Value) -> String {
     match content {
         serde_json::Value::String(s) => s.clone(),
         serde_json::Value::Array(blocks) => {
@@ -304,7 +313,7 @@ fn extract_raw_text(content: &serde_json::Value) -> String {
 }
 
 /// Simple HTML tag stripping
-fn strip_html(s: &str) -> String {
+pub fn strip_html(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut in_tag = false;
     for c in s.chars() {
@@ -319,23 +328,29 @@ fn strip_html(s: &str) -> String {
     result
 }
 
-/// Quick metadata extraction: reads only first few events
-#[allow(dead_code)]
+/// Quick metadata extraction: reads only first few events (does NOT read the whole file)
 pub fn parse_session_metadata(file_path: &str) -> Result<(String, String)> {
-    let raw = fs::read_to_string(file_path)?;
+    use std::io::{BufRead, BufReader};
+
+    let file = fs::File::open(file_path)?;
+    let reader = BufReader::new(file);
     let mut cwd = String::new();
     let mut started_at = String::new();
 
-    for (i, line) in raw.lines().enumerate() {
+    for (i, line_result) in reader.lines().enumerate() {
         if i >= 20 {
             break;
         }
-        let line = line.trim();
+        let line = match line_result {
+            Ok(l) => l,
+            Err(_) => continue,
+        };
+        let line = line.trim().to_string();
         if line.is_empty() {
             continue;
         }
 
-        let event: RawEvent = match serde_json::from_str(line) {
+        let event: RawEvent = match serde_json::from_str(&line) {
             Ok(e) => e,
             Err(_) => continue,
         };

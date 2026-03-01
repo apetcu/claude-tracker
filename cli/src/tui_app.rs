@@ -1,4 +1,5 @@
 use ratatui::widgets::TableState;
+use std::sync::mpsc;
 
 use crate::models::{GlobalMetrics, ProjectSummary};
 use crate::theme::{load_saved_theme, Theme};
@@ -9,6 +10,12 @@ pub enum View {
     ProjectList,
     ProjectDetail,
     SessionDetail,
+}
+
+/// Messages from background data loading
+pub enum LoadMessage {
+    Progress(String),
+    Done(Vec<ProjectSummary>, GlobalMetrics),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,9 +78,16 @@ pub struct App {
     pub selected_project: usize, // index into filtered_projects
     pub selected_session: usize,
     pub should_quit: bool,
+    // Message scroll state
+    pub message_scroll: usize,
+    // Async loading
+    pub loading: bool,
+    pub loading_status: String,
+    pub load_receiver: Option<mpsc::Receiver<LoadMessage>>,
 }
 
 impl App {
+    #[allow(dead_code)]
     pub fn new(projects: Vec<ProjectSummary>, metrics: GlobalMetrics) -> Self {
         let filtered: Vec<usize> = (0..projects.len()).collect();
         let mut table_state = TableState::default();
@@ -97,6 +111,66 @@ impl App {
             selected_project: 0,
             selected_session: 0,
             should_quit: false,
+
+            message_scroll: 0,
+            loading: false,
+            loading_status: String::new(),
+            load_receiver: None,
+        }
+    }
+
+    /// Create an app in loading state
+    pub fn loading(rx: mpsc::Receiver<LoadMessage>) -> Self {
+        Self {
+            projects: Vec::new(),
+            filtered_projects: Vec::new(),
+            metrics: GlobalMetrics::empty(),
+            view: View::Dashboard,
+            view_stack: Vec::new(),
+            input_mode: InputMode::Normal,
+            search_query: String::new(),
+            sort_column: SortColumn::LastActive,
+            sort_ascending: false,
+            theme: load_saved_theme(),
+            project_table_state: TableState::default(),
+            session_table_state: TableState::default(),
+            selected_project: 0,
+            selected_session: 0,
+            should_quit: false,
+
+            message_scroll: 0,
+            loading: true,
+            loading_status: "Starting...".to_string(),
+            load_receiver: Some(rx),
+        }
+    }
+
+    /// Check if background loading has completed or has progress updates
+    pub fn poll_load(&mut self) {
+        if !self.loading {
+            return;
+        }
+        if let Some(ref rx) = self.load_receiver {
+            // Drain all available messages
+            while let Ok(msg) = rx.try_recv() {
+                match msg {
+                    LoadMessage::Progress(status) => {
+                        self.loading_status = status;
+                    }
+                    LoadMessage::Done(projects, metrics) => {
+                        let filtered: Vec<usize> = (0..projects.len()).collect();
+                        self.projects = projects;
+                        self.filtered_projects = filtered;
+                        self.metrics = metrics;
+                        self.loading = false;
+                        self.load_receiver = None;
+                        if !self.projects.is_empty() {
+                            self.project_table_state.select(Some(0));
+                        }
+                        return;
+                    }
+                }
+            }
         }
     }
 
@@ -108,6 +182,7 @@ impl App {
     pub fn go_back(&mut self) {
         if let Some(prev) = self.view_stack.pop() {
             self.view = prev;
+            self.message_scroll = 0;
         }
     }
 
@@ -216,11 +291,24 @@ impl App {
             View::ProjectDetail => {
                 if let Some(proj) = self.current_project() {
                     if !proj.sessions.is_empty() {
+                        self.message_scroll = 0;
                         self.navigate_to(View::SessionDetail);
                     }
                 }
             }
             _ => {}
+        }
+    }
+
+    pub fn scroll_messages_up(&mut self) {
+        if self.message_scroll > 0 {
+            self.message_scroll -= 1;
+        }
+    }
+
+    pub fn scroll_messages_down(&mut self, max_messages: usize) {
+        if self.message_scroll + 1 < max_messages {
+            self.message_scroll += 1;
         }
     }
 

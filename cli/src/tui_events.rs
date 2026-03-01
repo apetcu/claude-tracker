@@ -50,6 +50,69 @@ fn handle_search_input(app: &mut App, code: KeyCode) {
 }
 
 fn handle_normal_input(app: &mut App, code: KeyCode) {
+    // In SessionDetail, j/k scroll through messages
+    if app.view == View::SessionDetail {
+        match code {
+            KeyCode::Char('q') => {
+                app.should_quit = true;
+                return;
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                let msg_count = app
+                    .current_project()
+                    .and_then(|p| p.sessions.get(app.selected_session))
+                    .map(|s| s.messages.len())
+                    .unwrap_or(0);
+                app.scroll_messages_down(msg_count);
+                return;
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                app.scroll_messages_up();
+                return;
+            }
+            KeyCode::Char('d') => {
+                let msg_count = app
+                    .current_project()
+                    .and_then(|p| p.sessions.get(app.selected_session))
+                    .map(|s| s.messages.len())
+                    .unwrap_or(0);
+                for _ in 0..10 {
+                    app.scroll_messages_down(msg_count);
+                }
+                return;
+            }
+            KeyCode::Char('u') => {
+                for _ in 0..10 {
+                    app.scroll_messages_up();
+                }
+                return;
+            }
+            KeyCode::Char('g') => {
+                app.message_scroll = 0;
+                return;
+            }
+            KeyCode::Char('G') => {
+                let msg_count = app
+                    .current_project()
+                    .and_then(|p| p.sessions.get(app.selected_session))
+                    .map(|s| s.messages.len())
+                    .unwrap_or(0);
+                app.message_scroll = msg_count.saturating_sub(1);
+                return;
+            }
+            KeyCode::Esc | KeyCode::Left | KeyCode::Backspace | KeyCode::Char('h') => {
+                app.go_back();
+                return;
+            }
+            KeyCode::Char('t') => {
+                app.theme = app.theme.next();
+                save_theme(app.theme);
+                return;
+            }
+            _ => return,
+        }
+    }
+
     match code {
         KeyCode::Char('q') => {
             app.should_quit = true;
