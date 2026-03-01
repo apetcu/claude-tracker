@@ -43,7 +43,7 @@ interface ProjectMetrics {
   totalLinesRemoved: number;
   linesBySource: Record<string, SourceLines>;
   fileContributions: Record<string, { added: number; removed: number }>;
-  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number }[];
+  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number; tokenInput: number; tokenOutput: number }[];
   humanLines?: number;
   humanWords?: number;
   humanChars?: number;

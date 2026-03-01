@@ -132,7 +132,7 @@ export interface GlobalMetrics {
     cacheCreation: number;
   };
   toolUsage: Record<string, number>;
-  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number }[];
+  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number; tokenInput: number; tokenOutput: number }[];
   totalLinesAdded: number;
   totalLinesRemoved: number;
 }
@@ -156,7 +156,7 @@ export interface ProjectMetrics {
   totalLinesRemoved: number;
   linesBySource: Record<string, SourceLines>;
   fileContributions: Record<string, FileContribution>;
-  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number }[];
+  timeline: { date: string; sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number; tokenInput: number; tokenOutput: number }[];
   humanLines: number;
   humanWords: number;
   humanChars: number;

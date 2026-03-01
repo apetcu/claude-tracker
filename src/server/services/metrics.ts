@@ -48,7 +48,7 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
   const fileContributions: Record<string, FileContribution> = {};
   const linesBySource: Record<string, SourceLines> = {};
 
-  const dayMap = new Map<string, { sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number }>();
+  const dayMap = new Map<string, { sessions: number; messages: number; claudeSessions: number; claudeMessages: number; cursorSessions: number; cursorMessages: number; tokenInput: number; tokenOutput: number }>();
 
   for (const s of sessions) {
     tokens.input += s.totalTokens.input;
@@ -81,9 +81,11 @@ export function aggregateMetrics(sessions: ParsedSession[]): {
 
     if (s.startedAt) {
       const day = s.startedAt.split("T")[0];
-      const existing = dayMap.get(day) ?? { sessions: 0, messages: 0, claudeSessions: 0, claudeMessages: 0, cursorSessions: 0, cursorMessages: 0 };
+      const existing = dayMap.get(day) ?? { sessions: 0, messages: 0, claudeSessions: 0, claudeMessages: 0, cursorSessions: 0, cursorMessages: 0, tokenInput: 0, tokenOutput: 0 };
       existing.sessions += 1;
       existing.messages += s.messages.length;
+      existing.tokenInput += s.totalTokens.input;
+      existing.tokenOutput += s.totalTokens.output;
       if (src === "cursor") {
         existing.cursorSessions += 1;
         existing.cursorMessages += s.messages.length;
