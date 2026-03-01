@@ -6,7 +6,7 @@ import { ToolBreakdown } from "../components/metrics/ToolBreakdown";
 import { FileContributions } from "../components/metrics/FileContributions";
 import { ActivityTimeline } from "../components/metrics/ActivityTimeline";
 import { SessionTimeline } from "../components/metrics/SessionTimeline";
-import { formatDate, formatRelative, formatDuration, formatNumber, shortModel } from "../lib/format";
+import { formatDate, formatRelative, formatDuration, formatNumber, shortModel, modelBadgeClass, estimateCost, formatCost } from "../lib/format";
 import { PromptText } from "../components/PromptText";
 
 interface ProjectInfo {
@@ -91,6 +91,11 @@ export function ProjectDetail() {
   const avgLinesPerSession = metrics && metrics.totalSessions > 0
     ? Math.round(metrics.totalLinesAdded / metrics.totalSessions) : 0;
 
+  const totalEstCost = useMemo(() => {
+    if (!sessions) return 0;
+    return sessions.reduce((sum, s) => sum + estimateCost(s.model, s.inputTokens, s.outputTokens, s.cacheReadTokens), 0);
+  }, [sessions]);
+
   // Shared date range across both timeline charts
   const dateRange = useMemo<[number, number] | undefined>(() => {
     const timestamps: number[] = [];
@@ -128,7 +133,7 @@ export function ProjectDetail() {
 
       {/* Top stats */}
       {metrics && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label="Sessions" value={metrics.totalSessions} />
           <StatCard label="Messages" value={metrics.totalMessages} />
           <StatCard
@@ -140,6 +145,10 @@ export function ProjectDetail() {
             label="Lines Added"
             value={metrics.totalLinesAdded}
             sub={`-${formatNumber(metrics.totalLinesRemoved)} removed`}
+          />
+          <StatCard
+            label="Est. Cost"
+            value={formatCost(totalEstCost)}
           />
         </div>
       )}
@@ -317,12 +326,13 @@ export function ProjectDetail() {
             {/* Table header */}
             <div className="grid grid-cols-[1fr_auto] gap-4 px-3 py-2 text-[10px] font-medium text-text-muted uppercase tracking-wider">
               <span>Session</span>
-              <div className="grid grid-cols-5 gap-4 text-right w-[420px]">
+              <div className="grid grid-cols-6 gap-3 text-right w-[500px]">
                 <span className="text-left">Model</span>
                 <span>Messages</span>
                 <span>Tokens</span>
                 <span>Cache</span>
                 <span>Output</span>
+                <span>Est. Cost</span>
               </div>
             </div>
             <div className="space-y-1">
@@ -347,12 +357,21 @@ export function ProjectDetail() {
                         <span className="ml-auto text-text-muted">{formatRelative(s.startedAt)}</span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-5 gap-4 text-right w-[420px] text-xs tabular-nums">
-                      <span className="text-left text-text-muted">{shortModel(s.model) || "—"}</span>
+                    <div className="grid grid-cols-6 gap-3 text-right w-[500px] text-xs tabular-nums items-center">
+                      <span className="text-left">
+                        {shortModel(s.model) ? (
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${modelBadgeClass(s.model)}`}>
+                            {shortModel(s.model)}
+                          </span>
+                        ) : (
+                          <span className="text-text-muted">—</span>
+                        )}
+                      </span>
                       <span className="text-text-secondary">{formatNumber(s.messageCount)}</span>
                       <span className="text-text-secondary font-medium">{formatNumber(s.totalTokens)}</span>
                       <span className="text-text-muted">{formatNumber(s.cacheReadTokens)}</span>
                       <span className="text-text-muted">{formatNumber(s.outputTokens)}</span>
+                      <span className="text-text-muted">{formatCost(estimateCost(s.model, s.inputTokens, s.outputTokens, s.cacheReadTokens))}</span>
                     </div>
                   </Link>
                 ))}

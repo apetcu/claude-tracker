@@ -8,7 +8,7 @@ export function Header() {
     if (location.pathname === "/activity") return "Activity Feed";
     if (location.pathname.startsWith("/projects/")) return "Project Detail";
     if (location.pathname.startsWith("/sessions/")) return "Session Detail";
-    return "Claude Tracker";
+    return "Coding Activity";
   })();
 
   return (

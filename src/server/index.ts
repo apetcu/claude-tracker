@@ -74,4 +74,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`[server] Claude Tracker API running on http://localhost:${server.port}`);
+console.log(`[server] Coding Activity API running on http://localhost:${server.port}`);

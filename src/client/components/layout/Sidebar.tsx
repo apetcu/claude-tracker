@@ -170,7 +170,7 @@ export function Sidebar() {
     <aside className="w-64 bg-surface-secondary border-r border-border flex flex-col h-full shrink-0">
       <div className="p-4 border-b border-border">
         <NavLink to="/" className="flex items-center gap-2 text-lg font-semibold text-text-primary">
-          <span className="text-accent">&#9673;</span> Claude Tracker
+          <span className="text-accent">&#9673;</span> Coding Activity
         </NavLink>
       </div>
 

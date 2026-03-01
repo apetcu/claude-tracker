@@ -43,6 +43,32 @@ export function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max) + "..." : s;
 }
 
+// API pricing per million tokens: [input, output, cacheRead]
+const MODEL_PRICING: Record<string, [number, number, number]> = {
+  opus:   [15, 75, 1.5],
+  sonnet: [3, 15, 0.3],
+  haiku:  [0.8, 4, 0.08],
+};
+
+export function estimateCost(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens: number
+): number {
+  const m = model.match(/(opus|sonnet|haiku)/i);
+  const tier = m ? m[1].toLowerCase() : "sonnet";
+  const [inputRate, outputRate, cacheRate] = MODEL_PRICING[tier] ?? MODEL_PRICING.sonnet;
+  const nonCacheInput = Math.max(0, inputTokens - cacheReadTokens);
+  return (nonCacheInput * inputRate + outputTokens * outputRate + cacheReadTokens * cacheRate) / 1_000_000;
+}
+
+export function formatCost(cost: number): string {
+  if (cost < 0.01) return "<$0.01";
+  if (cost < 1) return `$${cost.toFixed(2)}`;
+  return `$${cost.toFixed(2)}`;
+}
+
 export function shortModel(model: string): string {
   if (!model) return "";
   // Match patterns like "claude-opus-4-6", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"
@@ -56,4 +82,12 @@ export function shortModel(model: string): string {
   if (minor && minor.length >= 8) return `${name} ${major}`;
   if (minor) return `${name} ${major}.${minor}`;
   return `${name} ${major}`;
+}
+
+export function modelBadgeClass(model: string): string {
+  if (!model) return "bg-zinc-500/15 text-zinc-400";
+  if (model.includes("opus")) return "bg-amber-500/15 text-amber-400";
+  if (model.includes("sonnet")) return "bg-blue-500/15 text-blue-400";
+  if (model.includes("haiku")) return "bg-emerald-500/15 text-emerald-400";
+  return "bg-zinc-500/15 text-zinc-400";
 }
