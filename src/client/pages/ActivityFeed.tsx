@@ -1,5 +1,5 @@
 import { useWebSocket } from "../hooks/useWebSocket";
-import { formatRelative } from "../lib/format";
+import { formatRelative, shortModel } from "../lib/format";
 import { Link } from "react-router-dom";
 import { PromptText } from "../components/PromptText";
 
@@ -93,15 +93,6 @@ function ActionIcon({ action }: { action: string }) {
         </svg>
       );
   }
-}
-
-function shortModel(model: string): string {
-  if (!model) return "";
-  if (model.includes("opus")) return "Opus";
-  if (model.includes("sonnet")) return "Sonnet";
-  if (model.includes("haiku")) return "Haiku";
-  // Return last segment if it's a model ID like "claude-sonnet-4-..."
-  return model.split("-").slice(0, 3).join("-");
 }
 
 export function ActivityFeed() {

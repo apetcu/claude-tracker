@@ -6,7 +6,7 @@ import { ToolBreakdown } from "../components/metrics/ToolBreakdown";
 import { FileContributions } from "../components/metrics/FileContributions";
 import { ActivityTimeline } from "../components/metrics/ActivityTimeline";
 import { SessionTimeline } from "../components/metrics/SessionTimeline";
-import { formatDate, formatRelative, formatDuration, formatNumber } from "../lib/format";
+import { formatDate, formatRelative, formatDuration, formatNumber, shortModel } from "../lib/format";
 import { PromptText } from "../components/PromptText";
 
 interface ProjectInfo {
@@ -26,6 +26,11 @@ interface Session {
   messageCount: number;
   toolUseCount: number;
   durationMs: number;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  model: string;
   source?: "claude" | "cursor";
 }
 
@@ -308,34 +313,50 @@ export function ProjectDetail() {
         {loading ? (
           <div className="text-text-muted text-sm">Loading...</div>
         ) : (
-          <div className="space-y-1">
-            {sessions
-              ?.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-              .map((s) => (
-                <Link
-                  key={s.id}
-                  to={`/sessions/${s.id}`}
-                  className="flex items-center gap-4 p-3 bg-surface-secondary border border-border rounded-lg hover:border-border-hover transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-text-primary truncate">
-                      <PromptText text={s.firstPrompt} maxLength={120} />
+          <div>
+            {/* Table header */}
+            <div className="grid grid-cols-[1fr_auto] gap-4 px-3 py-2 text-[10px] font-medium text-text-muted uppercase tracking-wider">
+              <span>Session</span>
+              <div className="grid grid-cols-5 gap-4 text-right w-[420px]">
+                <span className="text-left">Model</span>
+                <span>Messages</span>
+                <span>Tokens</span>
+                <span>Cache</span>
+                <span>Output</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              {sessions
+                ?.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+                .map((s) => (
+                  <Link
+                    key={s.id}
+                    to={`/sessions/${s.id}`}
+                    className="grid grid-cols-[1fr_auto] gap-4 items-center p-3 bg-surface-secondary border border-border rounded-lg hover:border-border-hover transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm text-text-primary truncate">
+                        <PromptText text={s.firstPrompt} maxLength={100} />
+                      </div>
+                      <div className="flex gap-3 mt-1 text-xs text-text-muted items-center">
+                        {s.source === "cursor" && (
+                          <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-teal-500/15 text-teal-400 uppercase tracking-wider">Cursor</span>
+                        )}
+                        <span>{formatDate(s.startedAt)}</span>
+                        {s.durationMs > 0 && <span>{formatDuration(s.durationMs)}</span>}
+                        <span className="ml-auto text-text-muted">{formatRelative(s.startedAt)}</span>
+                      </div>
                     </div>
-                    <div className="flex gap-3 mt-1 text-xs text-text-muted items-center">
-                      {s.source === "cursor" && (
-                        <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-teal-500/15 text-teal-400 uppercase tracking-wider">Cursor</span>
-                      )}
-                      <span>{formatDate(s.startedAt)}</span>
-                      <span>{s.messageCount} msgs</span>
-                      <span>{s.toolUseCount} tools</span>
-                      {s.durationMs > 0 && <span>{formatDuration(s.durationMs)}</span>}
+                    <div className="grid grid-cols-5 gap-4 text-right w-[420px] text-xs tabular-nums">
+                      <span className="text-left text-text-muted">{shortModel(s.model) || "—"}</span>
+                      <span className="text-text-secondary">{formatNumber(s.messageCount)}</span>
+                      <span className="text-text-secondary font-medium">{formatNumber(s.totalTokens)}</span>
+                      <span className="text-text-muted">{formatNumber(s.cacheReadTokens)}</span>
+                      <span className="text-text-muted">{formatNumber(s.outputTokens)}</span>
                     </div>
-                  </div>
-                  <span className="text-xs text-text-muted shrink-0">
-                    {formatRelative(s.startedAt)}
-                  </span>
-                </Link>
-              ))}
+                  </Link>
+                ))}
+            </div>
           </div>
         )}
       </div>

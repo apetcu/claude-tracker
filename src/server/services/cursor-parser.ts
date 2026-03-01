@@ -299,6 +299,7 @@ function buildParsedSession(
     humanLines,
     humanWords,
     humanChars,
+    model: "",
     source: "cursor",
   };
 }

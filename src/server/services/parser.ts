@@ -33,6 +33,8 @@ export interface ParsedSession {
   humanWords: number;
   /** Human contribution: character count in user messages */
   humanChars: number;
+  /** Primary model used in this session */
+  model: string;
   source: DataSource;
 }
 
@@ -106,6 +108,7 @@ export async function parseSessionFile(
   let humanLines = 0;
   let humanWords = 0;
   let humanChars = 0;
+  let model = "";
 
   // Interleave user and assistant messages by timestamp
   // Collect all deduplicated assistant events
@@ -154,6 +157,8 @@ export async function parseSessionFile(
         uuid: event.uuid ?? "",
         usage: msg.usage,
       });
+
+      if (!model && msg.model) model = msg.model;
 
       // Count tokens (once per deduplicated message)
       if (msg.usage) {
@@ -216,6 +221,7 @@ export async function parseSessionFile(
     humanLines,
     humanWords,
     humanChars,
+    model,
     source: "claude",
   };
 }

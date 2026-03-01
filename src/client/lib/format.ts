@@ -42,3 +42,18 @@ export function formatDuration(ms: number): string {
 export function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max) + "..." : s;
 }
+
+export function shortModel(model: string): string {
+  if (!model) return "";
+  // Match patterns like "claude-opus-4-6", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"
+  const m = model.match(/(?:claude-)?(opus|sonnet|haiku)-?(\d+)?-?(\d+)?/i);
+  if (!m) return "";
+  const name = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase();
+  const major = m[2];
+  const minor = m[3];
+  if (!major) return name;
+  // Skip minor if it looks like a date (8 digits)
+  if (minor && minor.length >= 8) return `${name} ${major}`;
+  if (minor) return `${name} ${major}.${minor}`;
+  return `${name} ${major}`;
+}

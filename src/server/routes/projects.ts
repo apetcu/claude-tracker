@@ -98,12 +98,18 @@ app.get("/:id/sessions", async (c) => {
         messageCount: session.messages.length,
         toolUseCount: Object.values(session.toolUsage).reduce((a, b) => a + b, 0),
         durationMs: session.durationMs,
+        totalTokens: session.totalTokens.input + session.totalTokens.output,
+        inputTokens: session.totalTokens.input,
+        outputTokens: session.totalTokens.output,
+        cacheReadTokens: session.totalTokens.cacheRead,
+        model: session.model,
         source: f.source,
       };
     })
   );
 
-  return c.json(sessions.sort((a, b) => b.startedAt.localeCompare(a.startedAt)));
+  const filtered = sessions.filter((s) => s.firstPrompt || s.messageCount > 0);
+  return c.json(filtered.sort((a, b) => b.startedAt.localeCompare(a.startedAt)));
 });
 
 export default app;
